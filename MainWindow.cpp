@@ -1,8 +1,8 @@
-#include "MainWindow.h"
-#include <QDir>
-#include <QStandardPaths>
 #include <QClipboard>
+#include <QDir>
 #include <QGuiApplication>
+#include <QStandardPaths>
+#include "MainWindow.h"
 
 static QString capitalizeFirst(QString text) {
     if (!text.isEmpty()) {
@@ -12,10 +12,15 @@ static QString capitalizeFirst(QString text) {
 }
 
 MainWindow::MainWindow() {
-    kaomojiTabWidget = new QTabWidget;
+    mainLayout = new QGridLayout;
+    kaomojiCategories = new QListWidget;
+    kaomojiListStack = new QStackedWidget;
+
+    kaomojiCategories->setFixedWidth(0);
+    mainLayout->addWidget(kaomojiCategories, 0, 0);
+    mainLayout->addWidget(kaomojiListStack, 0, 1);
 
     QStringList dataDirs = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
-    QStringList files;
 
     bool dirFound = false;
     foreach (QString directory, dataDirs) {
@@ -24,7 +29,7 @@ MainWindow::MainWindow() {
             dirFound = true;
             QDir dir(directory);
             foreach (const QFileInfo &fileInfo, dir.entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot)) {
-                addTab(fileInfo);
+                addCategory(fileInfo);
             }
         }
     }
@@ -32,16 +37,24 @@ MainWindow::MainWindow() {
         qFatal("Could not find kaomoji data.");
     }
 
-    kaomojiTabWidget->setTabPosition(QTabWidget::West);
-    kaomojiTabWidget->show();
+    connect(kaomojiCategories, &QListWidget::itemClicked, this, &MainWindow::categoryClicked);
+
+    mainLayout->setColumnStretch(0, 0);
+    mainLayout->setColumnStretch(1, 1);
+    setLayout(mainLayout);
+    show();
 }
 
-void MainWindow::copyToClipboard(QListWidgetItem *item) {
+void MainWindow::copyToClipboard(QListWidgetItem* item) {
     QClipboard* clipboard = QGuiApplication::clipboard();
     clipboard->setText(item->text());
 }
 
-void MainWindow::addTab(const QFileInfo &fileInfo) {
+void MainWindow::categoryClicked(QListWidgetItem* item) {
+    kaomojiListStack->setCurrentWidget(kaomojiLists[item->text()]);
+}
+
+void MainWindow::addCategory(const QFileInfo &fileInfo) {
     QListWidget* listView = new QListWidget;
     const QFontMetrics metrics(listView->font());
     int width = 0;
@@ -63,7 +76,11 @@ void MainWindow::addTab(const QFileInfo &fileInfo) {
     listView->setWrapping(true);
     listView->setResizeMode(QListWidget::ResizeMode::Adjust);
 
-    connect(listView, SIGNAL(itemClicked(QListWidgetItem*)), this, SLOT(copyToClipboard(QListWidgetItem*)));
+    connect(listView, &QListWidget::itemClicked, this, &MainWindow::copyToClipboard);
 
-    kaomojiTabWidget->addTab(listView, capitalizeFirst(fileInfo.completeBaseName()));
+    QString categoryName = capitalizeFirst(fileInfo.completeBaseName());
+    kaomojiLists[categoryName] = listView;
+    kaomojiListStack->addWidget(listView);
+    kaomojiCategories->addItem(categoryName);
+    kaomojiCategories->setFixedWidth(std::max(kaomojiCategories->width(), metrics.horizontalAdvance(categoryName) + 24));
 }
