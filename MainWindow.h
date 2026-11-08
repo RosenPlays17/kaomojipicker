@@ -12,20 +12,21 @@ class MainWindow : public QWidget {
     Q_OBJECT
 
 private:
-    QGridLayout* mainLayout;
-    QListWidget* kaomojiCategories;
-    QStackedWidget* kaomojiListStack;
+    QGridLayout mainLayout;
+    QListWidget kaomojiCategories;
+    QStackedWidget kaomojiListStack;
     QMap<QString,QListWidget*> kaomojiLists;
 
 public:
     MainWindow();
 
 private slots:
-    void copyToClipboard(QListWidgetItem *item);
-    void categoryClicked(QListWidgetItem *item);
+    static void copyToClipboard(const QListWidgetItem* item);
+    void categoryClicked(const QListWidgetItem* item);
 
 private:
-    void addCategory(const QFileInfo &fileInfo);
+    void searchDataDirs();
+    void addCategory(const QFileInfo& fileInfo);
 };
 
 #endif //KAOMOJI_MAINWINDOW_H

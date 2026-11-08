@@ -12,17 +12,31 @@ static QString capitalizeFirst(QString text) {
 }
 
 MainWindow::MainWindow() {
-    mainLayout = new QGridLayout;
-    kaomojiCategories = new QListWidget;
-    kaomojiListStack = new QStackedWidget;
+    kaomojiCategories.setFixedWidth(0);
+    mainLayout.addWidget(&kaomojiCategories, 0, 0);
+    mainLayout.addWidget(&kaomojiListStack, 0, 1);
 
-    kaomojiCategories->setFixedWidth(0);
-    mainLayout->addWidget(kaomojiCategories, 0, 0);
-    mainLayout->addWidget(kaomojiListStack, 0, 1);
+    searchDataDirs();
 
+    connect(&kaomojiCategories, &QListWidget::itemClicked, this, &MainWindow::categoryClicked);
+
+    mainLayout.setColumnStretch(0, 0);
+    mainLayout.setColumnStretch(1, 1);
+    setLayout(&mainLayout);
+}
+
+void MainWindow::copyToClipboard(const QListWidgetItem* item) {
+    QGuiApplication::clipboard()->setText(item->text());
+}
+
+void MainWindow::categoryClicked(const QListWidgetItem* item) {
+    kaomojiListStack.setCurrentWidget(kaomojiLists[item->text()]);
+}
+
+void MainWindow::searchDataDirs() {
     QStringList dataDirs = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
-
     bool dirFound = false;
+
     foreach (QString directory, dataDirs) {
         directory += "/kaomojipicker/kaomoji";
         if (QFile::exists(directory)) {
@@ -33,29 +47,15 @@ MainWindow::MainWindow() {
             }
         }
     }
+
     if (!dirFound) {
-        qFatal("Could not find kaomoji data.");
+        qFatal("Could not find kaomoji data. Possible data locations: %s", qPrintable(dataDirs.join(", ")));
     }
-
-    connect(kaomojiCategories, &QListWidget::itemClicked, this, &MainWindow::categoryClicked);
-
-    mainLayout->setColumnStretch(0, 0);
-    mainLayout->setColumnStretch(1, 1);
-    setLayout(mainLayout);
-    show();
 }
 
-void MainWindow::copyToClipboard(QListWidgetItem* item) {
-    QClipboard* clipboard = QGuiApplication::clipboard();
-    clipboard->setText(item->text());
-}
-
-void MainWindow::categoryClicked(QListWidgetItem* item) {
-    kaomojiListStack->setCurrentWidget(kaomojiLists[item->text()]);
-}
-
-void MainWindow::addCategory(const QFileInfo &fileInfo) {
+void MainWindow::addCategory(const QFileInfo& fileInfo) {
     QListWidget* listView = new QListWidget;
+    const QString categoryName = capitalizeFirst(fileInfo.completeBaseName());
     const QFontMetrics metrics(listView->font());
     int width = 0;
 
@@ -78,9 +78,8 @@ void MainWindow::addCategory(const QFileInfo &fileInfo) {
 
     connect(listView, &QListWidget::itemClicked, this, &MainWindow::copyToClipboard);
 
-    QString categoryName = capitalizeFirst(fileInfo.completeBaseName());
     kaomojiLists[categoryName] = listView;
-    kaomojiListStack->addWidget(listView);
-    kaomojiCategories->addItem(categoryName);
-    kaomojiCategories->setFixedWidth(std::max(kaomojiCategories->width(), metrics.horizontalAdvance(categoryName) + 24));
+    kaomojiListStack.addWidget(listView);
+    kaomojiCategories.addItem(categoryName);
+    kaomojiCategories.setFixedWidth(std::max(kaomojiCategories.width(), metrics.horizontalAdvance(categoryName) + 24));
 }
